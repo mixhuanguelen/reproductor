@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FM MIX - Modo Ruta Dual</title>
+    <style>
+        body { font-family: sans-serif; background: #121212; color: #fff; text-align: center; padding: 50px 20px; }
+        .player-card { background: #1e1e1e; padding: 30px; border-radius: 12px; max-width: 400px; margin: auto; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        button { background: #1db954; color: white; border: none; padding: 12px 24px; font-size: 16px; border-radius: 25px; cursor: pointer; margin-top: 15px; font-weight: bold; width: 100%; }
+        button:active { background: #1aa34a; }
+        #status { margin-top: 15px; font-size: 14px; color: #b3b3b3; }
+        .badge { display: inline-block; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: bold; margin-bottom: 10px; }
+        .online { background: #2e7d32; color: #fff; }
+        .offline { background: #c62828; color: #fff; }
+    </style>
+</head>
+<body>
+
+    <div class="player-card">
+        <h2>FM MIX</h2>
+        <div id="network-badge" class="badge online">Sistema Listo</div>
+        
+        <!-- Elemento de audio nativo -->
+        <audio id="audioPlayer" controls style="width: 100%; margin-top: 20px;"></audio>
+        
+        <div id="status">Presiona reproducir o sincronizar.</div>
+        
+        <button onclick="conectarRadioOnline()">Conectar En Vivo (Online)</button>
+        <button onclick="sincronizarAudioRuta()" style="background: #2196F3;">Descargar Bloque para la Ruta</button>
+    </div>
+
+    <script>
+        const GITHUB_RELEASE_URL = 'https://github.com/mixhuanguelen/reproductor/releases/download/v1.0.0/80s.modoruta.mp3';
+        const STREAM_EN_VIVO = 'https://stream.zeno.fm/nqv6v9996zhvv';
+        const CACHE_NAME = 'fm-mix-ruta-v1';
+        const AUDIO_CACHE_KEY = '/offline-mix-1h.mp3';
+
+        const audioPlayer = document.getElementById('audioPlayer');
+        const statusDiv = document.getElementById('status');
+        const networkBadge = document.getElementById('network-badge');
+
+        function conectarRadioOnline() {
+            if (navigator.onLine) {
+                networkBadge.className = 'badge online';
+                networkBadge.innerText = 'ONLINE (En Vivo)';
+                audioPlayer.src = STREAM_EN_VIVO;
+                audioPlayer.play().then(() => {
+                    statusDiv.innerText = 'Reproduciendo señal en vivo.';
+                }).catch(e => {
+                    statusDiv.innerText = 'Error al reproducir audio online.';
+                });
+            } else {
+                alert('No hay internet. Cambiando a Modo Ruta...');
+                activarModoOffline();
+            }
+        }
+
+        async function activarModoOffline() {
+            networkBadge.className = 'badge offline';
+            networkBadge.innerText = 'OFFLINE (Modo Ruta)';
+            try {
+                const cache = await caches.open(CACHE_NAME);
+                const response = await cache.match(AUDIO_CACHE_KEY);
+                if (response) {
+                    const blob = await response.blob();
+                    audioPlayer.src = URL.createObjectURL(blob);
+                    audioPlayer.play();
+                    statusDiv.innerText = 'Reproduciendo desde memoria local.';
+                } else {
+                    statusDiv.innerText = 'No hay archivo local descargado.';
+                }
+            } catch (e) {
+                statusDiv.innerText = 'Error al cargar modo offline.';
+            }
+        }
+
+        async function sincronizarAudioRuta() {
+            statusDiv.innerText = 'Descargando bloque desde GitHub...';
+            try {
+                const cache = await caches.open(CACHE_NAME);
+                const response = await fetch(GITHUB_RELEASE_URL, { mode: 'cors' });
+                if (!response.ok) throw new Error('Fallo de red o enlace');
+                
+                await cache.put(AUDIO_CACHE_KEY, response);
+                statusDiv.innerText = '¡Sincronización exitosa para la ruta!';
+                alert('¡Descarga completa! Ya tienes el audio guardado.');
+            } catch (e) {
+                console.error(e);
+                alert('Error al descargar. Súbelo a GitHub Pages o usa un servidor local (Live Server).');
+                statusDiv.innerText = 'Error en la descarga.';
+            }
+        }
+    </script>
+</body>
+</html>
